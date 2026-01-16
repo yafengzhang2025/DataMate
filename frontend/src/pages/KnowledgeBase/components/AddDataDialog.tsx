@@ -15,6 +15,7 @@ import { addKnowledgeBaseFilesUsingPost } from "../knowledge-base.api";
 import DatasetFileTransfer from "@/components/business/DatasetFileTransfer";
 import { DescriptionsItemType } from "antd/es/descriptions";
 import { DatasetFileCols } from "../knowledge-base.const";
+import { DatasetType } from "@/pages/DataManagement/dataset.model";
 
 const sliceOptions = [
   { label: "默认分块", value: "DEFAULT_CHUNK" },
@@ -273,6 +274,7 @@ export default function AddDataDialog({ knowledgeBase, onDataAdded }) {
               open={open}
               selectedFilesMap={selectedFilesMap}
               onSelectedFilesChange={setSelectedFilesMap}
+              datasetTypeFilter={DatasetType.TEXT}
             />
           )}
 

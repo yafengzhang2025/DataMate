@@ -37,6 +37,10 @@ public:
       log: 1Gi
       database: 1Gi
       operator: 1Gi
+  secrets:
+    data:
+      DB_PASSWORD: "password"
+      CERT_PASS: ""
 
 datasetVolume: &datasetVolume
   name: dataset-volume
@@ -65,14 +69,20 @@ operatorVolume: &operatorVolume
 
 database:
   env:
-    - name: MYSQL_ROOT_PASSWORD
-      value: &dbPass "password"
+    - name: POSTGRES_USER
+      value: postgres
+    - name: POSTGRES_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: datamate-conf
+          key: DB_PASSWORD
   volumes:
     - *dataVolume
     - *logVolume
   volumeMounts:
     - name: data-volume
-      mountPath: /var/lib/mysql
+      mountPath: /var/lib/postgresql/data
+      subPath: postgres
     - name: log-volume
       mountPath: /var/log/datamate/database
       subPath: database
@@ -84,7 +94,10 @@ backend:
         - SYS_ADMIN
   env:
     - name: DB_PASSWORD
-      value: *dbPass
+      valueFrom:
+        secretKeyRef:
+          name: datamate-conf
+          key: DB_PASSWORD
     - name: datamate.rag.milvus-uri
       value: "http://milvus:19530"
   volumes:
@@ -104,8 +117,11 @@ backend:
 
 backend-python:
   env:
-    - name: DB_PASSWORD
-      value: *dbPass
+    - name: pgsql_password
+      valueFrom:
+        secretKeyRef:
+          name: datamate-conf
+          key: DB_PASSWORD
   volumes:
     - *datasetVolume
     - *flowVolume
@@ -119,6 +135,9 @@ backend-python:
       mountPath: /var/log/datamate
 
 gateway:
+  env:
+    - name: JWT_SECRET
+      value: "default-insecure-key-change-in-production"
   volumes:
     - *logVolume
   volumeMounts:
@@ -130,18 +149,24 @@ frontend:
   service:
     type: NodePort
     nodePort: 30000
+  env:
+    - name: CERT_PASS
+      valueFrom:
+        secretKeyRef:
+          name: datamate-conf
+          key: CERT_PASS
   volumes:
     - *logVolume
-    - name: datamate-nginx-conf
+    - name: cert-volume
       configMap:
-        name: datamate-nginx-conf
+        name: cube-security-nginx-cert
+        optional: true
   volumeMounts:
     - name: log-volume
       mountPath: /var/log/datamate/frontend
       subPath: frontend
-    - mountPath: /etc/nginx/conf.d/backend.conf
-      name: datamate-nginx-conf
-      subPath: backend.conf
+    - name: cert-volume
+      mountPath: /cert
 
 runtime:
   enabled: false
@@ -151,15 +176,18 @@ runtime:
     - --port
     - "8081"
   env: &runtimeEnv
-    - name: MYSQL_HOST
+    - name: PG_HOST
       value: "datamate-database"
-    - name: MYSQL_PORT
-      value: "3306"
-    - name: MYSQL_USER
-      value: "root"
-    - name: MYSQL_PASSWORD
-      value: *dbPass
-    - name: MYSQL_DATABASE
+    - name: PG_PORT
+      value: "5432"
+    - name: PG_USER
+      value: "postgres"
+    - name: PG_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: datamate-conf
+          key: DB_PASSWORD
+    - name: PG_DATABASE
       value: "datamate"
   volumes:
     - *datasetVolume
@@ -205,15 +233,18 @@ ray-cluster:
         value: "0"
       - name: RAY_TQDM_PATCH_PRINT
         value: "0"
-      - name: MYSQL_HOST
+      - name: PG_HOST
         value: "datamate-database"
-      - name: MYSQL_PORT
-        value: "3306"
-      - name: MYSQL_USER
-        value: "root"
-      - name: MYSQL_PASSWORD
-        value: *dbPass
-      - name: MYSQL_DATABASE
+      - name: PG_PORT
+        value: "5432"
+      - name: PG_USER
+        value: "postgres"
+      - name: PG_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: datamate-conf
+            key: DB_PASSWORD
+      - name: PG_DATABASE
         value: "datamate"
       - name: RAY_enable_autoscaler_v2
         value: "1"
@@ -257,15 +288,18 @@ ray-cluster:
         value: "0"
       - name: RAY_TQDM_PATCH_PRINT
         value: "0"
-      - name: MYSQL_HOST
+      - name: PG_HOST
         value: "datamate-database"
-      - name: MYSQL_PORT
-        value: "3306"
-      - name: MYSQL_USER
-        value: "root"
-      - name: MYSQL_PASSWORD
-        value: *dbPass
-      - name: MYSQL_DATABASE
+      - name: PG_PORT
+        value: "5432"
+      - name: PG_USER
+        value: "postgres"
+      - name: PG_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: datamate-conf
+            key: DB_PASSWORD
+      - name: PG_DATABASE
         value: "datamate"
     resources:
       limits:
@@ -306,15 +340,18 @@ ray-cluster:
           value: "0"
         - name: RAY_TQDM_PATCH_PRINT
           value: "0"
-        - name: MYSQL_HOST
+        - name: PG_HOST
           value: "datamate-database"
-        - name: MYSQL_PORT
-          value: "3306"
-        - name: MYSQL_USER
-          value: "root"
-        - name: MYSQL_PASSWORD
-          value: *dbPass
-        - name: MYSQL_DATABASE
+        - name: PG_PORT
+          value: "5432"
+        - name: PG_USER
+          value: "postgres"
+        - name: PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: datamate-conf
+              key: DB_PASSWORD
+        - name: PG_DATABASE
           value: "datamate"
         - name: POD_NAME
           valueFrom:
