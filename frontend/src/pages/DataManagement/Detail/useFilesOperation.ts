@@ -14,6 +14,7 @@ import {
   deleteDirectoryUsingDelete,
   renameDatasetFileUsingPut,
   renameDirectoryUsingPut,
+  getDatasetFileByIdUsingGet,
 } from "../dataset.api";
 import { useParams } from "react-router";
 
@@ -35,6 +36,9 @@ export function useFilesOperation(dataset: Dataset) {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewContent, setPreviewContent] = useState("");
   const [previewFileName, setPreviewFileName] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>();
+  const [previewFileDetail, setPreviewFileDetail] = useState<any | undefined>();
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const fetchFiles = async (prefix?: string, current?, pageSize?) => {
     // 如果明确传了 prefix（包括空字符串），使用传入的值；否则使用当前 pagination.prefix
@@ -80,7 +84,8 @@ export function useFilesOperation(dataset: Dataset) {
 
   const handleDownloadFile = async (file: DatasetFile) => {
     // 实际导出逻辑
-    await downloadFileByIdUsingGet(dataset.id, file.id, file.fileName);
+    const prefix = pagination.prefix || "";
+    await downloadFileByIdUsingGet(dataset.id, prefix, file.id, file.fileName);
     // 假设导出成功
     message.success({
       content: `已导出 1 个文件`,
@@ -88,22 +93,51 @@ export function useFilesOperation(dataset: Dataset) {
     setSelectedFiles([]); // 清空选中状态
   };
 
-  const handleShowFile = (file: any) => async () => {
-    // 请求文件内容并弹窗预览
+  const isImageFile = (fileName?: string, fileType?: string) => {
+    const lowerType = (fileType || "").toLowerCase();
+    if (lowerType.includes("image")) return true;
+    const name = (fileName || "").toLowerCase();
+    return [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"].some((ext) =>
+      name.endsWith(ext)
+    );
+  };
+
+  const handlePreviewFile = async (file: any) => {
+    if (!file || !file.id) return;
+    const datasetId = dataset.id;
+    setPreviewVisible(true);
+    setPreviewLoading(true);
+    setPreviewFileName(file.fileName || "");
+    setPreviewContent("");
+    setPreviewUrl(undefined);
+    setPreviewFileDetail(undefined);
     try {
-      const res = await fetch(`/api/datasets/${dataset.id}/file/${file.id}`);
-      const data = await res.text();
-      setPreviewFileName(file.fileName);
-      setPreviewContent(data);
-      setPreviewVisible(true);
-    } catch (err) {
+      // 获取文件元信息（来自 t_dm_dataset_files）
+      const prefix = pagination.prefix || "";
+      const detailRes: any = await getDatasetFileByIdUsingGet(datasetId, file.id, prefix);
+      const detail = detailRes?.data || detailRes;
+      setPreviewFileDetail(detail);
+
+      const image = isImageFile(detail?.fileName || file.fileName, detail?.fileType);
+      const { blob, blobUrl } = await downloadFileByIdUsingGet(datasetId, prefix, file.id, file.fileName, "preview");
+
+      if (image) {
+        setPreviewUrl(blobUrl);
+      } else {
+        const text = await blob.text();
+        setPreviewContent(text);
+      }
+    } catch (error) {
       message.error({ content: "文件预览失败" });
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
   const handleDeleteFile = async (file) => {
     try {
-      await deleteDatasetFileUsingDelete(dataset.id, file.id);
+      const prefix = pagination.prefix || "";
+      await deleteDatasetFileUsingDelete(dataset.id, file.id, prefix);
       fetchFiles(); // 刷新文件列表
       message.success({ content: `文件 ${file.fileName} 已删除` });
     } catch (error) {
@@ -131,6 +165,54 @@ export function useFilesOperation(dataset: Dataset) {
       });
   };
 
+  const deleteDirectoryRecursively = async (directoryPath: string) => {
+    // 递归删除指定目录下的所有文件和子目录，然后再删除目录本身
+    const pageSize = 1000;
+
+    while (true) {
+      const { data } = await queryDatasetFilesUsingGet(id!, {
+        page: 0,
+        size: pageSize,
+        isWithDirectory: true,
+        prefix: directoryPath,
+      });
+
+      const content = data?.content || [];
+      if (!content.length) {
+        break;
+      }
+
+      const directories = content.filter(
+        (item: any) => typeof item.id === "string" && item.id.startsWith("directory-")
+      );
+      const files = content.filter(
+        (item: any) => !(typeof item.id === "string" && item.id.startsWith("directory-"))
+      );
+
+      // 先删除文件
+      for (const file of files) {
+        try {
+          await deleteDatasetFileUsingDelete(dataset.id, file.id, directoryPath);
+        } catch (e) {
+          console.error("删除文件失败", file, e);
+        }
+      }
+
+      // 再递归删除子目录
+      for (const dir of directories) {
+        const childPath = `${directoryPath}${dir.fileName}/`;
+        await deleteDirectoryRecursively(childPath);
+      }
+    }
+
+    // 最后尝试删除当前目录本身（若后端目录为空即可删除）
+    try {
+      await deleteDirectoryUsingDelete(dataset.id, directoryPath);
+    } catch (e) {
+      console.error("删除目录失败", directoryPath, e);
+    }
+  };
+
   return {
     fileList,
     selectedFiles,
@@ -141,13 +223,16 @@ export function useFilesOperation(dataset: Dataset) {
     setPreviewVisible,
     previewContent,
     previewFileName,
+      previewUrl,
+      previewFileDetail,
+      previewLoading,
     setPreviewContent,
     setPreviewFileName,
     fetchFiles,
     setFileList,
     handleBatchDeleteFiles,
     handleDownloadFile,
-    handleShowFile,
+    handlePreviewFile,
     handleDeleteFile,
     handleBatchExport,
     handleCreateDirectory: async (directoryName: string) => {
@@ -175,12 +260,13 @@ export function useFilesOperation(dataset: Dataset) {
     },
     handleDeleteDirectory: async (directoryPath: string, directoryName: string) => {
       try {
-        await deleteDirectoryUsingDelete(dataset.id, directoryPath);
+        await deleteDirectoryRecursively(directoryPath);
         // 删除成功后刷新当前目录
         const currentPrefix = pagination.prefix || "";
         await fetchFiles(currentPrefix, 1, pagination.pageSize);
         message.success({ content: `文件夹 ${directoryName} 已删除` });
       } catch (error) {
+        console.error("删除文件夹失败", error);
         message.error({ content: `文件夹 ${directoryName} 删除失败` });
       }
     },

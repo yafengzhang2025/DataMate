@@ -1,29 +1,16 @@
+"""通用系统服务：仅保留与 DB 直接相关的查询。LLM 创建与调用统一使用 app.core.llm.LLMFactory。"""
 from typing import Optional
 
-from langchain_core.language_models import BaseChatModel
-from langchain_openai import ChatOpenAI
-from pydantic import SecretStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.model_config import ModelConfig
+from app.db.models.models import Models
 
 
-async def get_model_by_id(db: AsyncSession, model_id: str) -> Optional[ModelConfig]:
-    """根据模型ID获取 ModelConfig 记录。"""
-    result = await db.execute(select(ModelConfig).where(ModelConfig.id == model_id))
-    return result.scalar_one_or_none()
-
-
-def get_chat_client(model: ModelConfig) -> BaseChatModel:
-    return ChatOpenAI(
-        model=model.model_name,
-        base_url=model.base_url,
-        api_key=SecretStr(model.api_key),
+async def get_model_by_id(db: AsyncSession, model_id: str) -> Optional[Models]:
+    """根据模型ID获取未删除的 Models 记录。"""
+    q = select(Models).where(Models.id == model_id).where(
+        (Models.is_deleted == False) | (Models.is_deleted.is_(None))
     )
-
-
-def chat(model: BaseChatModel, prompt: str) -> str:
-    """使用指定模型进行聊天"""
-    response = model.invoke(prompt)
-    return response.content
+    result = await db.execute(q)
+    return result.scalar_one_or_none()

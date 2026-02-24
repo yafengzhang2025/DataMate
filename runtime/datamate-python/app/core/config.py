@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     debug: bool = True
     log_file_dir: str = "/var/log/datamate/backend-python"
+    rag_storage_dir: str = "/data/rag_storage"
 
     # Database
     pgsql_host: str = "datamate-database"
@@ -73,6 +74,8 @@ class Settings(BaseSettings):
 
     # DataMate
     dm_file_path_prefix: str = "/dataset"  # DM存储文件夹前缀
+
+    datamate_jwt_enable: bool = False
 
 # 全局设置实例
 settings = Settings()

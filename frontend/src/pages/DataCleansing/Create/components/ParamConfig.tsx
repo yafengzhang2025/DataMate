@@ -8,6 +8,7 @@ import {
   InputNumber,
   Slider,
   Space,
+  Switch,
 } from "antd";
 import { ConfigI, OperatorI } from "@/pages/OperatorMarket/operator.model";
 
@@ -25,11 +26,11 @@ const ParamConfig: React.FC<ParamConfigProps> = ({
   onParamChange,
 }) => {
   if (!param) return null;
-  let defaultVal: any = param.defaultVal;
+  let defaultVal: any = operator.overrides?.[paramKey] ?? param.defaultVal;
   if (param.type === "range") {
-    
-    defaultVal = Array.isArray(param.defaultVal)
-      ? param.defaultVal
+
+    defaultVal = Array.isArray(defaultVal)
+      ? defaultVal
       : [
           param?.properties?.[0]?.defaultVal,
           param?.properties?.[1]?.defaultVal,
@@ -215,12 +216,13 @@ const ParamConfig: React.FC<ParamConfigProps> = ({
           tooltip={param.description}
           key={paramKey}
         >
-          <Checkbox
-            checked={value as boolean}
-            onChange={(e) => updateValue(e.target.checked)}
-          >
-            {param.name}
-          </Checkbox>
+          <Switch
+            value={value}
+            checkedChildren={param.checkedLabel}
+            unCheckedChildren={param.unCheckedLabel}
+            defaultChecked={String(param.defaultVal).toLowerCase() === 'true'}
+            onChange={(checked) => updateValue(checked)}
+          />
         </Form.Item>
       );
     case "multiple":

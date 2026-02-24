@@ -27,6 +27,12 @@ public class DatasetFileResponse {
     private String description;
     /** 文件路径 */
     private String filePath;
+    /** 文件标签（JSON 字符串） */
+    private String tags;
+    /** 标签更新时间 */
+    private LocalDateTime tagsUpdatedAt;
+    /** 文件元数据（包含标注信息等，JSON 字符串） */
+    private String metadata;
     /** 上传时间 */
     private LocalDateTime uploadTime;
     /** 最后更新时间 */

@@ -49,7 +49,6 @@ class ImgSimilarImagesCleaner(Filter):
     """去除相似图片的插件"""
 
     DEFAULT_SIMILAR_THRESHOLD = 0.8  # 默认相似度阈值
-    DEFAULT_TASK_UUID = "uuid"  # 默认任务UUID
     DEFAULT_ORB_RATIO = 0.8  # 默认特征点距离比率
     DEFAULT_MIX_SIMILARITY = 0.75  # 默认相似度算法阈值
     DEFAULT_IMG_RESIZE = 200  # 默认图片压缩尺寸
@@ -59,7 +58,7 @@ class ImgSimilarImagesCleaner(Filter):
         super().__init__(*args, **kwargs)
         self.similar_threshold = kwargs.get("similarThreshold", self.DEFAULT_SIMILAR_THRESHOLD)  # 默认相似度阈值为0.8
         # task_uuid为标识该数据集的唯一标志
-        self.task_uuid = kwargs.get("uuid", self.DEFAULT_TASK_UUID)
+        self.task_uuid = kwargs.get("uuid", "")
         self.orb_ratio = self.DEFAULT_ORB_RATIO  # 特征点距离的比率，该数值为经验值
         self.mix_similarity = self.DEFAULT_MIX_SIMILARITY  # 选择相似度算法的阈值，该数值为经验值
         self.img_resize = self.DEFAULT_IMG_RESIZE  # 图片压缩尺寸
@@ -139,8 +138,8 @@ class ImgSimilarImagesCleaner(Filter):
             orb_similarity = count / len(matches)
             return orb_similarity
         except Exception as e:
-            logger.exception(f"taskId: ｛self.task_uuid｝, failed to compare the similarity between "
-                             f"｛file_name｝ and ｛file_name_history｝: {e}")
+            logger.exception(f"taskId: {self.task_uuid}, failed to compare the similarity between "
+                             f"{file_name} and {file_name_history}: {e}")
             return 0.0
 
     def execute_sql(self, p_hash: str, des_matrix: np.ndarray, file_name: str,
@@ -218,9 +217,10 @@ class ImgSimilarImagesCleaner(Filter):
             similarity = round(result, 2)
             if similarity >= self.similar_threshold:
                 logger.info(
-                    "fileName: %s, method: ImgSimilarCleaner, dataset: %s. This picture is similar to %s, "
-                    "and the similarity is %.4f. The picture is filtered.", file_name, self.task_uuid,
-                    file_name_decoded, similarity)
+                    f"fileName: {file_name}, method: ImgSimilarCleaner, dataset: {self.task_uuid}. "
+                    f"This picture is similar to {file_name_decoded}, "
+                    f"and the similarity is {similarity:.4f}. The picture is filtered."
+                )
                 return True
         return False
 
@@ -230,6 +230,7 @@ class ImgSimilarImagesCleaner(Filter):
         self.read_file_first(sample)
         file_name = sample[self.filename_key]
         img_bytes = sample[self.data_key]
+        self.task_uuid = sample.get("instance_id") if not self.task_uuid else self.task_uuid
         data = bytes_to_numpy(img_bytes) if img_bytes else np.array([])
         similar_images = self.filter_similar_images(data, file_name)
         # 若相似图片，sample[self.data_key]设为空

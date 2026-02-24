@@ -1,16 +1,37 @@
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 import {useParams} from "react-router";
 import {FileClock} from "lucide-react";
+import { useTranslation } from "react-i18next";
 
-export default function LogsTable({taskLog, fetchTaskLog} : {taskLog: any[], fetchTaskLog: () => Promise<any>}) {
+export default function LogsTable({taskLog, fetchTaskLog, retryCount} : {taskLog: any[], fetchTaskLog: () => Promise<any>, retryCount: number}) {
   const { id = "" } = useParams();
+  const { t } = useTranslation();
+  const [selectedLog, setSelectedLog] = useState(retryCount + 1);
 
   useEffect(() => {
-    fetchTaskLog();
-  }, [id]);
+    fetchTaskLog(selectedLog - 1);
+  }, [id, selectedLog]);
 
   return taskLog?.length > 0 ? (
     <>
+      {/* --- 新增区域：左上角 Select 组件 --- */}
+      <div className="flex items-center justify-between pb-3">
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-medium text-gray-500">{t("dataCleansing.detail.logTable.selectRun")}:</label>
+          <select
+            value={selectedLog}
+            onChange={(e) => setSelectedLog(Number(e.target.value))}
+            className="bg-gray-700 border border-gray-600 !text-white text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block px-2.5 py-1.5 min-w-[120px]"
+          >
+            {Array.from({ length: retryCount + 1 }, (_, i) => retryCount + 1 - i).map((num) => (
+              <option key={num} value={num}>
+                {t("dataCleansing.detail.logTable.currentDisplay", { num: num })}
+              </option>
+            ))}
+          </select>
+        </div>
+        <span className="text-s text-gray-500 px-2">{t("dataCleansing.detail.logTable.nthRun", { num: selectedLog })}</span>
+      </div>
       <div className="text-gray-300 p-4 border border-gray-700 bg-gray-800 rounded-lg">
         <div className="font-mono text-sm">
           {taskLog?.map?.((log, index) => (
@@ -36,7 +57,7 @@ export default function LogsTable({taskLog, fetchTaskLog} : {taskLog: any[], fet
     <div className="text-center py-12">
       <FileClock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
       <h3 className="text-lg font-medium text-gray-900 mb-2">
-        当前任务无可用日志
+        {t("dataCleansing.detail.logTable.noLogs")}
       </h3>
     </div>
   );

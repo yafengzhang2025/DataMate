@@ -41,6 +41,7 @@ public:
     data:
       DB_PASSWORD: "password"
       CERT_PASS: ""
+      DOMAIN: ""
 
 datasetVolume: &datasetVolume
   name: dataset-volume
@@ -68,6 +69,19 @@ operatorVolume: &operatorVolume
     claimName: datamate-operator-pvc
 
 database:
+  initContainers:
+    - name: init-chown
+      imagePullPolicy: IfNotPresent
+      command:
+        - sh
+        - -c
+        - "chown -R 999:999 /var/log/datamate/database && chmod 750 /var/log/datamate/database"
+      securityContext:
+        runAsUser: 0
+      volumeMounts:
+        - name: log-volume
+          mountPath: /var/log/datamate/database
+          subPath: database
   env:
     - name: POSTGRES_USER
       value: postgres
@@ -100,6 +114,8 @@ backend:
           key: DB_PASSWORD
     - name: datamate.rag.milvus-uri
       value: "http://milvus:19530"
+    - name: datamate.jwt.enable
+      value: &DATAMATE_JWT_ENABLE 'false'
   volumes:
     - *datasetVolume
     - *flowVolume
@@ -122,10 +138,13 @@ backend-python:
         secretKeyRef:
           name: datamate-conf
           key: DB_PASSWORD
+    - name: datamate_jwt_enable
+      value: *DATAMATE_JWT_ENABLE
   volumes:
     - *datasetVolume
     - *flowVolume
     - *logVolume
+    - *operatorVolume
   volumeMounts:
     - name: dataset-volume
       mountPath: /dataset
@@ -133,11 +152,15 @@ backend-python:
       mountPath: /flow
     - name: log-volume
       mountPath: /var/log/datamate
+    - name: operator-volume
+      mountPath: /operators
 
 gateway:
   env:
     - name: JWT_SECRET
       value: "default-insecure-key-change-in-production"
+    - name: datamate.jwt.enable
+      value: *DATAMATE_JWT_ENABLE
   volumes:
     - *logVolume
   volumeMounts:
@@ -155,6 +178,11 @@ frontend:
         secretKeyRef:
           name: datamate-conf
           key: CERT_PASS
+    - name: DOMAIN
+      valueFrom:
+        secretKeyRef:
+          name: datamate-conf
+          key: DOMAIN
   volumes:
     - *logVolume
     - name: cert-volume

@@ -24,6 +24,11 @@ export function queryDatasetByIdUsingGet(id: string | number) {
   return get(`/api/data-management/datasets/${id}`);
 }
 
+// 根据ID获取数据集详情
+export function queryDatasetLineageByIdUsingGet(id: string | number) {
+  return get(`/api/data-management/datasets/${id}/lineage`);
+}
+
 // 更新数据集
 export function updateDatasetByIdUsingPut(id: string | number, data: any) {
   return put(`/api/data-management/datasets/${id}`, data);
@@ -47,6 +52,17 @@ export function validateDatasetUsingPost(id: string | number, data?: any) {
 // 获取数据集文件列表
 export function queryDatasetFilesUsingGet(id: string | number, params?: any) {
   return get(`/api/data-management/datasets/${id}/files`, params);
+}
+
+// 根据ID获取单个数据集文件详情
+export function getDatasetFileByIdUsingGet(
+  datasetId: string | number,
+  fileId: string | number,
+  prefix: string
+) {
+  return get(
+    `/api/data-management/datasets/${datasetId}/files/${fileId}`, { prefix: prefix}
+  );
 }
 
 // 上传数据集文件
@@ -93,22 +109,26 @@ export function renameDirectoryUsingPut(
 
 export function downloadFileByIdUsingGet(
   id: string | number,
+  prefix: string,
   fileId: string | number,
-  fileName: string
+  fileName: string,
+  action: string = "download"
 ) {
   return download(
     `/api/data-management/datasets/${id}/files/${fileId}/download`,
-    null,
-    fileName
+    { prefix: prefix },
+    fileName,
+    action
   );
 }
 
 // 删除数据集文件
 export function deleteDatasetFileUsingDelete(
   datasetId: string | number,
-  fileId: string | number
+  fileId: string | number,
+  prefix: string
 ) {
-  return del(`/api/data-management/datasets/${datasetId}/files/${fileId}`);
+  return del(`/api/data-management/datasets/${datasetId}/files/${fileId}`, { prefix: prefix });
 }
 
 // 重命名数据集文件（仅修改主名称，后缀保持不变）

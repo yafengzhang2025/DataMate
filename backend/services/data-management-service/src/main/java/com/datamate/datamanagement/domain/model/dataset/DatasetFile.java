@@ -3,6 +3,7 @@ package com.datamate.datamanagement.domain.model.dataset;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.datamate.common.infrastructure.config.PgJsonTypeHandler;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.*;
@@ -32,6 +33,7 @@ public class DatasetFile {
     private Long fileSize; // bytes
     private String checkSum;
     private String tags;
+    @TableField(typeHandler = PgJsonTypeHandler.class)
     private String metadata;
     private String status; // UPLOADED, PROCESSING, COMPLETED, ERROR
     private LocalDateTime uploadTime;
