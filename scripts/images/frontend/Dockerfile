@@ -12,7 +12,7 @@ FROM nginx:1.29 AS runner
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt \
     apt update \
-    && apt install -y dos2unix python3 python3-dev python3-venv libaugeas-dev gcc \
+    && apt install -y dos2unix python3 python3-dev python3-venv libaugeas-dev gcc vim cron \
     && python3 -m venv /opt/certbot/ \
     && /opt/certbot/bin/pip install --upgrade pip \
     && /opt/certbot/bin/pip install certbot certbot-nginx \
@@ -22,6 +22,7 @@ COPY --from=builder /app/dist /opt/frontend/statics
 COPY scripts/images/frontend/routes.inc /opt/frontend/routes.inc
 COPY scripts/images/frontend/http_backend.conf /opt/frontend/http_backend.conf
 COPY scripts/images/frontend/https_backend.conf /opt/frontend/https_backend.conf
+COPY scripts/images/frontend/nginx.conf /opt/frontend/nginx.conf
 
 COPY scripts/images/frontend/start.sh /opt/frontend/start.sh
 
@@ -29,6 +30,7 @@ RUN dos2unix /opt/frontend/start.sh \
     && chmod +x /opt/frontend/start.sh \
     && mkdir -p /etc/nginx/cert \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && rm -f /etc/nginx/nginx.conf \
     && rm -f /etc/nginx/conf.d/default.conf
 
 EXPOSE 3000

@@ -7,14 +7,14 @@ import { useTranslation } from "react-i18next";
 
 interface CustomTagProps {
   isEditable?: boolean;
-  tag: { id: number; name: string };
-  editingTag?: string | null;
+  tag: TagItem;
+  editingTag?: TagItem | null;
   editingTagValue?: string;
-  setEditingTag?: React.Dispatch<React.SetStateAction<string | null>>;
+  setEditingTag?: React.Dispatch<React.SetStateAction<TagItem | null>>;
   setEditingTagValue?: React.Dispatch<React.SetStateAction<string>>;
-  handleEditTag?: (tag: { id: number; name: string }, value: string) => void;
-  handleCancelEdit?: (tag: { id: number; name: string }) => void;
-  handleDeleteTag?: (tag: { id: number; name: string }) => void;
+  handleEditTag?: (tag: TagItem, value: string) => void;
+  handleCancelEdit?: (tag: TagItem) => void;
+  handleDeleteTag?: (tag: TagItem) => void;
 }
 
 function CustomTag({
@@ -99,17 +99,17 @@ const TagManager: React.FC = ({
   onDelete,
   onUpdate,
 }: {
-  onFetch: () => Promise<any>;
-  onCreate: (tag: Pick<TagItem, "name">) => Promise<{ ok: boolean }>;
-  onDelete: (tagId: number) => Promise<{ ok: boolean }>;
-  onUpdate: (tag: TagItem) => Promise<{ ok: boolean }>;
+  onFetch: (params?: any) => Promise<{ data: TagItem[] }>;
+  onCreate: (tag: Pick<TagItem, "name">) => Promise<{ data: TagItem }>;
+  onDelete: (ids: string) => Promise<any>;
+  onUpdate: (tag: TagItem) => Promise<{ data: TagItem }>;
 }) => {
   const [showTagManager, setShowTagManager] = useState(false);
   const { message } = App.useApp();
   const { t } = useTranslation();
-  const [tags, setTags] = useState<{ id: number; name: string }[]>([]);
+  const [tags, setTags] = useState<TagItem[]>([]);
   const [newTag, setNewTag] = useState("");
-  const [editingTag, setEditingTag] = useState<string | null>(null);
+  const [editingTag, setEditingTag] = useState<TagItem | null>(null);
   const [editingTagValue, setEditingTagValue] = useState("");
 
   // 获取标签列表
@@ -119,7 +119,8 @@ const TagManager: React.FC = ({
       const { data } = await onFetch?.();
       setTags(data || []);
     } catch (e) {
-      message.error(t("tagManagement.messages.fetchFailed"));
+      // 错误已由全局拦截器处理，无需重复提示
+      console.error("Failed to fetch tags:", e);
     }
   };
 
@@ -133,7 +134,8 @@ const TagManager: React.FC = ({
       setNewTag("");
       message.success(t("tagManagement.messages.addSuccess"));
     } catch (error) {
-      message.error(t("tagManagement.messages.addFailed"));
+      // 错误已由全局拦截器处理，无需重复提示
+      console.error("Failed to add tag:", error);
     }
   };
 
@@ -144,7 +146,8 @@ const TagManager: React.FC = ({
       fetchTags();
       message.success(t("tagManagement.messages.deleteSuccess"));
     } catch (error) {
-      message.error(t("tagManagement.messages.deleteFailed"));
+      // 错误已由全局拦截器处理，无需重复提示
+      console.error("Failed to delete tag:", error);
     }
   };
 
@@ -154,7 +157,8 @@ const TagManager: React.FC = ({
       fetchTags();
       message.success(t("tagManagement.messages.updateSuccess"));
     } catch (error) {
-      message.error(t("tagManagement.messages.updateFailed"));
+      // 错误已由全局拦截器处理，无需重复提示
+      console.error("Failed to update tag:", error);
     }
   };
 
@@ -173,7 +177,7 @@ const TagManager: React.FC = ({
     }
   };
 
-  const handleCancelEdit = (tag: string) => {
+  const handleCancelEdit = (tag: TagItem) => {
     setEditingTag(null);
     setEditingTagValue("");
   };

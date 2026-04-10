@@ -1,5 +1,10 @@
 package com.datamate.datamanagement.interfaces.dto;
 
+import com.datamate.datamanagement.interfaces.validation.ValidPath;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -7,6 +12,7 @@ import lombok.Setter;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -34,15 +40,21 @@ public class AddFilesRequest {
     @Getter
     @Setter
     public static class FileRequest {
+        @NotBlank(message = "文件路径不能为空")
+        @Size(max = 1000, message = "文件路径长度不能超过1000个字符")
         private String filePath;
 
-        private Map<String, Object> metadata;
+        private Map<String, Object> metadata = new HashMap<>();
     }
 
     private boolean softAdd;
 
+    @ValidPath()
     private String prefix = "";
 
+    @NotEmpty(message = "文件列表不能为空")
+    @Size(max = 1000, message = "文件数量不能超过1000个")
+    @Valid
     private List<FileRequest> files;
 
     public boolean isValidPrefix() {

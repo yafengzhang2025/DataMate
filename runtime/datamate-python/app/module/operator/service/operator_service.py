@@ -230,16 +230,21 @@ class OperatorService:
     async def get_operator_by_id(
         self,
         operator_id: str,
-        db: AsyncSession
+        db: AsyncSession,
+        locale: Optional[str] = None
     ) -> OperatorDto:
         """根据 ID 获取算子详情"""
+        attr = "category_name"
+        if locale == "en":
+            attr = "category_name_en"
+
         result = await db.execute(
-            text("""
+            text(f"""
                 SELECT
                     operator_id, operator_name, description, version, inputs, outputs, runtime,
                     settings, is_star, file_name, file_size, usage_count, metrics,
                     created_at, updated_at, created_by, updated_by,
-                    string_agg(category_name, ',' ORDER BY created_at DESC) AS categories
+                    string_agg({attr}, ',' ORDER BY created_at DESC) AS categories
                 FROM v_operator
                 WHERE operator_id = :operator_id
                 GROUP BY operator_id, operator_name, description, version, inputs, outputs, runtime,
@@ -618,6 +623,14 @@ class OperatorService:
     def _get_upload_path(self, file_name: str) -> str:
         """获取上传文件路径"""
         return os.path.join(OPERATOR_BASE_PATH, UPLOAD_DIR, file_name)
+
+    async def increment_usage_count(
+        self,
+        operator_ids: List[str],
+        db: AsyncSession
+    ) -> None:
+        """增加算子使用次数"""
+        await self.operator_repo.increment_usage_count(operator_ids, db)
 
     def _get_extract_path(self, file_stem: str) -> str:
         """获取解压路径"""

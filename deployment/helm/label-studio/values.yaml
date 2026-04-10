@@ -72,8 +72,8 @@ pgbouncer:
   replicaCount: 1
 
   image:
-    repository: pgbouncer/pgbouncer
-    tag: "latest"
+    repository: edoburu/pgbouncer
+    tag: "v1.25.1-p0"
     pullPolicy: IfNotPresent
 
   # Connection pool settings
@@ -81,6 +81,7 @@ pgbouncer:
   maxClientConn: 100     # Maximum number of client connections
   defaultPoolSize: 20    # Default pool size per database (max connections to PostgreSQL)
   maxDbConnections: 20   # Maximum database connections (hard limit)
+  authType: scram-sha-256
 
   resources: {}
 
