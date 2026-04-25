@@ -1,0 +1,258 @@
+# -*- coding: utf-8 -*-
+
+import json
+import os
+import time
+import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any
+
+from loguru import logger
+from sqlalchemy import text
+
+from datamate.sql_manager.sql_manager import SQLManager
+
+
+class TaskInfoPersistence:
+    def __init__(self):
+        self.sql_dict = self.load_sql_dict()
+
+    @staticmethod
+    def load_sql_dict():
+        """获取sql语句"""
+        sql_config_path = str(Path(__file__).parent / 'sql' / 'sql_config.json')
+        with open(sql_config_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+    def update_task_result(self, sample, file_id = None):
+        if file_id is None:
+            file_id = str(uuid.uuid4())
+        instance_id = str(sample.get("instance_id"))
+        src_file_name = str(sample.get("sourceFileName"))
+        src_file_type = str(sample.get("sourceFileType"))
+        src_file_id = str(sample.get("sourceFileId"))
+        src_file_size = int(sample.get("sourceFileSize"))
+
+        file_size = str(sample.get("fileSize"))
+        file_type = str(sample.get("fileType"))
+        file_name = str(sample.get("fileName"))
+
+        status = str(sample.get("execute_status"))
+        failed_reason = json.dumps(sample.get("failed_reason"), ensure_ascii=False)
+        result_data = {
+            "instance_id": instance_id,
+            "src_file_id": src_file_id,
+            "dest_file_id": file_id,
+            "src_name": src_file_name,
+            "dest_name": file_name,
+            "src_type": src_file_type,
+            "dest_type": file_type,
+            "src_size": src_file_size,
+            "dest_size": file_size,
+            "status": status,
+            "result": failed_reason
+        }
+        self.insert_result(result_data, str(self.sql_dict.get("insert_clean_result_sql")))
+
+    def update_file_result(self, sample, file_id):
+        file_size = str(sample.get("fileSize"))
+        file_type = str(sample.get("fileType"))
+        file_name = str(sample.get("fileName"))
+        dataset_id = str(sample.get("dataset_id"))
+        file_path = str(sample.get("filePath"))
+        create_time = datetime.now()
+        last_access_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+        file_data = {
+            "id": file_id,
+            "dataset_id": dataset_id,
+            "file_name": file_name,
+            "file_path": file_path,
+            "file_type": file_type,
+            "file_size": file_size,
+            "status": "COMPLETED",
+            "upload_time": create_time,
+            "last_access_time": last_access_time,
+            "created_at": create_time,
+            "updated_at": create_time
+        }
+        self.insert_result(file_data, str(self.sql_dict.get("insert_dataset_file_sql")))
+
+    def query_existing_files(self, dataset_id: str):
+        result = None
+        query_sql = str(self.sql_dict.get("query_dataset_files_sql"))
+        with SQLManager.create_connect() as conn:
+            execute_result = conn.execute(text(query_sql), {"dataset_id": dataset_id})
+            result = execute_result.fetchall()
+        return result
+
+    def batch_insert_files(self, samples):
+        insert_sql = str(self.sql_dict.get("insert_dataset_file_sql"))
+        self.batch_execute(insert_sql, samples)
+
+    def persistence_task_info(self, sample: Dict[str, Any]):
+        file_id = str(uuid.uuid4())
+        self.update_task_result(sample, file_id)
+        self.update_file_result(sample, file_id)
+
+    @staticmethod
+    def insert_result(data, sql):
+        retries = 0
+        max_retries = 20
+        retry_delay = 1
+        while retries <= max_retries:
+            try:
+                with SQLManager.create_connect() as conn:
+                    conn.execute(text(sql), data)
+                return
+            except Exception as e:
+                if "database is locked" in str(e) or "locking protocol" in str(e):
+                    retries += 1
+                    time.sleep(retry_delay)
+                else:
+                    logger.error("database execute failed: {}", str(e))
+                    raise RuntimeError(82000, str(e)) from None
+        raise Exception("Max retries exceeded")
+
+    @staticmethod
+    def batch_execute(sql, args_list):
+        """
+        批量执行 SQL
+        :param sql: SQL 语句 (例如: "INSERT INTO table (a, b) VALUES (%s, %s)")
+        :param args_list: 参数列表 (例如: [(1, 2), (3, 4), ...])
+        """
+        # 获取连接
+        with SQLManager.create_connect() as conn:
+            try:
+                conn.execute(text(sql), args_list)
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"批量插入失败: {e}")
+                raise e
+
+    def update_result(self, dataset_id, instance_id, status):
+        dataset_data = {
+            "dataset_id": dataset_id
+        }
+        query_dataset_sql = str(self.sql_dict.get("query_dataset_sql"))
+        with SQLManager.create_connect() as conn:
+            result = conn.execute(text(query_dataset_sql), dataset_data)
+        if result:
+            rows = result.fetchall()
+            total_size = sum(int(row[0]) for row in rows)
+            file_count = len(rows)
+        else:
+            total_size = 0
+            file_count = 0
+
+        dataset_data.update({
+            "task_id": instance_id,
+            "total_size": total_size,
+            "file_count": file_count
+        })
+
+        update_dataset_sql = str(self.sql_dict.get("update_dataset_sql"))
+        self.insert_result(dataset_data, update_dataset_sql)
+
+        # Determine final status based on file results
+        final_status = self._determine_task_status(instance_id, status)
+
+        task_data = {
+            "task_id": instance_id,
+            "status": final_status,
+            "total_size": total_size,
+            "finished_time": datetime.now()
+        }
+        update_task_sql = str(self.sql_dict.get("update_task_sql"))
+        self.insert_result(task_data, update_task_sql)
+
+    def _determine_task_status(self, instance_id: str, executor_status: str) -> str:
+        """Determine final task status based on file processing results"""
+        if executor_status == "FAILED":
+            return "FAILED"
+
+        # Query file results to determine status
+        try:
+            with SQLManager.create_connect() as conn:
+                # Count completed and failed files from t_clean_result (same table as progress calculation)
+                query = text("""
+                    SELECT
+                        COUNT(CASE WHEN status = 'COMPLETED' THEN 1 END) as completed,
+                        COUNT(CASE WHEN status = 'FAILED' THEN 1 END) as failed
+                    FROM t_clean_result
+                    WHERE instance_id = :instance_id
+                """)
+                result = conn.execute(query, {"instance_id": instance_id})
+                row = result.fetchone()
+
+                if row:
+                    completed = row[0] or 0
+                    failed = row[1] or 0
+
+                    logger.info(f"Task {instance_id} file results: completed={completed}, failed={failed}")
+
+                    # Determine status based on file results
+                    if completed > 0 and failed > 0:
+                        final_status = "PARTIAL_SUCCESS"
+                    elif completed > 0:
+                        final_status = "COMPLETED"
+                    else:
+                        final_status = "FAILED"
+
+                    logger.info(f"Task {instance_id} final status: {final_status}")
+                    return final_status
+        except Exception as e:
+            logger.warning(f"Failed to determine task status for {instance_id}: {e}")
+
+        return executor_status
+
+    def query_task_info(self, instance_ids: list[str]):
+        result = {}
+        current_result = None
+        for instance_id in instance_ids:
+            try:
+                current_result = self.execute_sql_query(instance_id)
+            except Exception as e:
+                logger.warning("instance_id: {}, query job result error: {}", instance_id, str(e))
+            if current_result:
+                result[instance_id] = current_result
+        return result
+
+    def execute_sql_query(self, instance_id):
+        result = None
+        create_tables_sql = str(self.sql_dict.get("create_tables_sql"))
+        query_sql = str(self.sql_dict.get("query_sql"))
+        with SQLManager.create_connect() as conn:
+            conn.execute(text(create_tables_sql))
+            execute_result = conn.execute(text(query_sql), {"instance_id": instance_id})
+            result = execute_result.fetchall()
+        return result
+
+    # todo 删除接口待实现
+    def delete_task_info(self, instance_id: str):
+        create_tables_sql = self.sql_dict.get("create_tables_sql")
+        delete_task_instance_sql = self.sql_dict.get("delete_task_instance_sql")
+        try:
+            with SQLManager.create_connect() as conn:
+                conn.execute(text(create_tables_sql))
+                conn.execute(text(delete_task_instance_sql), {"instance_id": instance_id})
+        except Exception as e:
+            logger.warning(f"delete database for flow: {instance_id}", e)
+
+    def delete_task_operate_info(self, instance_id: str):
+        create_duplicate_img_tables_sql = self.sql_dict.get("create_duplicate_img_tables_sql")
+        create_similar_img_tables_sql = self.sql_dict.get("create_similar_img_tables_sql")
+        create_similar_text_tables_sql = self.sql_dict.get("create_similar_text_tables_sql")
+        delete_duplicate_img_tables_sql = self.sql_dict.get("delete_duplicate_img_tables_sql")
+        delete_similar_img_tables_sql = self.sql_dict.get("delete_similar_img_tables_sql")
+        delete_similar_text_tables_sql = self.sql_dict.get("delete_similar_text_tables_sql")
+        try:
+            with SQLManager.create_connect() as conn:
+                conn.execute(text(create_duplicate_img_tables_sql))
+                conn.execute(text(delete_duplicate_img_tables_sql), {"instance_id": instance_id})
+                conn.execute(text(create_similar_img_tables_sql))
+                conn.execute(text(delete_similar_img_tables_sql), {"instance_id": instance_id})
+                conn.execute(text(create_similar_text_tables_sql))
+                conn.execute(text(delete_similar_text_tables_sql), {"instance_id": instance_id})
+        except Exception as e:
+            logger.warning(f"delete database for flow: {instance_id} error", e)

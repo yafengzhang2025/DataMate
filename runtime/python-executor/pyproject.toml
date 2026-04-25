@@ -1,0 +1,64 @@
+[project]
+name = "datamate"
+dynamic = ["version"]
+description = "Data Processing for and with Foundation Models."
+authors = [
+    { name = "Huawei datamate team" }
+]
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10, <=3.12"
+urls = { repository = "https://github.com/ModelEngine-Group/datamate" }
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent"
+]
+
+# Core dependencies
+dependencies = [
+    "fastapi>=0.123.9",
+    "jsonargparse>=4.44.0",
+    "loguru>=0.7.3",
+    "opencv-python-headless>=4.12.0.88",
+    "ray[data,default]>=2.52.1",
+    "unstructured[csv,docx,pptx,xlsx,pdf,md]==0.18.15",
+    "uvicorn[standard]>=0.38.0",
+    "sqlalchemy>=2.0.44",
+    "psycopg2-binary>=2.9.11",
+    "requests>=2.32.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "datamate/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["datamate"]
+include = ["pyproject.toml"]
+
+[tool.hatch.build]
+include = ["pyproject.toml"]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"pyproject.toml" = "pyproject.toml"
+
+[tool.flake8]
+per-file-ignores = [
+    "*/__init__.py: F401"
+]
+max-line-length = 120
+extend-ignore = [
+    "E203", # whitespace before ':' (black handles this)
+    "E501", # line too long (black handles this)
+    "BLK100", # black would make changes (black handles this)
+]
+
+[tool.black]
+line-length = 120
+target-version = ['py310']
+
+[tool.isort]
+profile = "black"

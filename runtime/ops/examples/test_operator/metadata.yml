@@ -1,0 +1,102 @@
+name: '测试算子'
+description: '这是一个测试算子。'
+language: 'python'
+vendor: 'huawei'
+raw_id: 'TestMapper'
+version: '1.0.0'
+modal: 'text'     # text/image/audio/video/multimodal
+inputs: 'text'    # text/image/audio/video/multimodal
+outputs: 'text'   # text/image/audio/video/multimodal
+types:
+  - 'cleaning'
+  - 'annotation'
+release:
+  - '首次发布'
+  - '支持基本处理操作'
+metrics:
+  - name: '准确率'
+    metric: '99.5%'
+  - name: '处理速度'
+    metric: '50 ms/image'
+  - name: '内存使用'
+    metric: '128MB'
+  - name: '吞吐量'
+    metric: '20 images/sec'
+runtime:
+  memory: 10485760
+  cpu: 0.05
+  gpu: 0
+  npu: 0
+settings:
+  sliderParam:
+    name: '滑窗测试'
+    description: '这是一个测试滑窗。'
+    type: 'slider'
+    defaultVal: 0.5
+    min: 0
+    max: 1
+    step: 0.1
+  switchParam:
+    name: '开关测试'
+    description: '这是一个开关测试。'
+    type: 'switch'
+    defaultVal: 'true'
+    required: false
+    checkedLabel: '选中'
+    unCheckedLabel: '未选中'
+  radioParam:
+    name: '单选测试'
+    description: '这是一个单选测试。'
+    type: 'radio'
+    defaultVal: 'option1'
+    required: false
+    options:
+      - label: '选项1'
+        value: 'option1'
+      - label: '选项2'
+        value: 'option2'
+  selectParam:
+    name: '下拉框测试'
+    description: '这是一个下拉框测试。'
+    type: 'select'
+    defaultVal: 'option1'
+    required: false
+    options:
+      - label: '选项1'
+        value: 'option1'
+      - label: '选项2'
+        value: 'option2'
+  rangeParam:
+    name: '范围测试'
+    description: '这是一个范围框测试。'
+    type: 'range'
+    properties:
+      - name: 'rangeLeft'
+        type: 'inputNumber'
+        defaultVal: 100
+        min: 0
+        max: 10000
+        step: 1
+      - name: 'rangeRight'
+        type: 'inputNumber'
+        defaultVal: 8000
+        min: 0
+        max: 10000
+        step: 1
+  checkboxParam:
+    name: '多选框测试'
+    description: '这是一个多选框测试。'
+    type: 'checkbox'
+    defaultVal: 'option1,option2'
+    required: false
+    options:
+      - label: '选项1'
+        value: 'option1'
+      - label: '选项2'
+        value: 'option2'
+  inputParam:
+    name: '输入框测试'
+    description: '这是一个输入框测试。'
+    type: 'input'
+    defaultVal: 'Test Input'
+    required: false

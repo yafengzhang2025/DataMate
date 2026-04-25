@@ -1,0 +1,33 @@
+name: '图片重采样'
+name_en: 'Image Resampling'
+description: '将图片放大或缩小到指定像素。'
+description_en: 'Zooms in or out images to specified pixels.'
+language: 'python'
+vendor: 'huawei'
+raw_id: 'ImgResize'
+version: '1.0.0'
+types:
+  - 'cleanse'
+modal: 'image'
+effect:
+  before: ''
+  after: ''
+inputs: 'image'
+outputs: 'image'
+settings:
+  widthSize:
+    name: 宽度
+    type: inputNumber
+    description: 像素
+    defaultVal: 256
+    min: 1
+    max: 4096
+    step: 1
+  heightSize:
+    type: inputNumber
+    name: 高度
+    description: 像素
+    defaultVal: 256
+    min: 1
+    max: 4096
+    step: 1

@@ -1,0 +1,43 @@
+name: '病理图片自动切片'
+name_en: 'Pathological Image Automatic Slicing'
+description: '按照给定规格对病理图片进行切片。'
+description_en: 'Slicing pathology image with given box size.'
+language: 'python'
+vendor: 'huawei'
+raw_id: 'SimpleSlicer'
+version: '1.0.0'
+types:
+  - 'consolidate'
+modal: 'image'
+effect:
+  before: ''
+  after: ''
+inputs: 'image'
+outputs: 'image'
+settings:
+  sliceSize:
+    name: 切片尺寸
+    type: multiple
+    properties:
+      - type: inputNumber
+        name: 宽度
+        description: 像素
+        defaultVal: 128
+        min: 100
+        max: 1024
+        step: 1
+      - type: inputNumber
+        name: 高度
+        description: 像素
+        defaultVal: 128
+        min: 100
+        max: 1024
+        step: 1
+  overlap:
+    name: 重叠比例
+    description: 重叠比例越大，切片间重叠面积越大。
+    type: slider
+    defaultVal: 0
+    min: 0
+    max: 0.9
+    step: 0.1

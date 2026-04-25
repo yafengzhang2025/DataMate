@@ -1,0 +1,34 @@
+name: 'MinerU PDF文本抽取'
+name_en: 'MinerU PDF Text Extraction'
+description: '基于MinerU API，抽取PDF中的文本。'
+description_en: 'Extracts text from PDF files based on MinerU API.'
+language: 'python'
+vendor: 'huawei'
+raw_id: 'MineruFormatter'
+version: '1.0.0'
+types:
+  - 'collect'
+modal: 'text'
+effect:
+  before: ''
+  after: ''
+inputs: 'text'
+outputs: 'text'
+settings:
+  mineruApi:
+    name: 'Mineru Api地址'
+    description: '指定mineru服务的api地址，默认为本地同一集群内地址。'
+    type: 'input'
+    defaultVal: 'http://datamate-mineru:8000'
+    required: false
+  exportType:
+    name: '导出类型'
+    description: '指定清洗结果文件类型。若指定为md且后续存在其他清洗算子，可能导致文件格式错乱。'
+    type: 'select'
+    defaultVal: 'markdown'
+    required: false
+    options:
+      - label: 'markdown'
+        value: 'md'
+      - label: 'txt'
+        value: 'txt'
